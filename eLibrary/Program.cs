@@ -1,16 +1,20 @@
+using System.Security.Claims;
 using eLibrary.Application.Services;
 using eLibrary.Infrastructure.Context;
+using eLibrary.Policy;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.Resource;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
+using static System.Net.WebRequestMethods;
 
 namespace eLibrary;
 
@@ -26,19 +30,32 @@ public class Program
             opt.UseNpgsql(configuration.GetConnectionString("PostgresConnection"));
         });
 
+        var domain = $"https://{builder.Configuration["Auth0:Domain"]}/";
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddMicrosoftIdentityWebApi(options =>
+            .AddJwtBearer(options =>
             {
-                builder.Configuration.Bind("AzureAd", options);
-                options.TokenValidationParameters.NameClaimType = "name";
-            }, options => { builder.Configuration.Bind("AzureAd", options); });
+                options.Authority = domain;
+                options.Audience = builder.Configuration["Auth0:Audience"];
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    NameClaimType = ClaimTypes.NameIdentifier
+                };
+            });
 
-        builder.Services.AddAuthorization(config =>
-        {
-            config.AddPolicy("AuthZPolicy", policyBuilder =>
-                policyBuilder.Requirements.Add(new ScopeAuthorizationRequirement()
-                    { RequiredScopesConfigurationKey = $"AzureAd:Scopes" }));
-        });
+        builder.Services
+            .AddAuthorization(options =>
+            {
+                options.AddPolicy(
+                    "read:books",
+                    policy => policy.Requirements.Add(
+                        new HasScopeRequirement("read:books", domain)
+                    )
+                );
+            });
+
+        builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
+        builder.Services.AddScoped<IAuthenticationServices, AuthenticationServices>();
+
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -67,6 +84,15 @@ public class Program
             }
         );
 
+        builder.Services.AddCors(c => c.AddPolicy("CorsPolicy",
+            builder => builder
+                .AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .WithMethods("GET", "PUT", "DELETE", "POST",
+                    "PATCH") //not really necessary when AllowAnyMethods is used.
+        ));
+
         var app = builder.Build();
 
         app.UseSwagger();
@@ -79,13 +105,11 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
-
-        app.UseAuthentication();
-        app.UseAuthorization();
-
+        app.UseCors("CorsPolicy");
 
         app.MapControllers();
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.Run();
     }

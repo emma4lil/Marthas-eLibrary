@@ -4,7 +4,7 @@ using Microsoft.Identity.Web.Resource;
 
 namespace eLibrary.Controllers;
 
-[Authorize(Policy = "AuthZPolicy")]
+//[Authorize(Policy = "read:books")]
 [ApiController]
 [Route("[controller]")]
 public class WeatherForecastController : ControllerBase
@@ -24,6 +24,7 @@ public class WeatherForecastController : ControllerBase
     [HttpGet(Name = "GetWeatherForecast")]
     public IEnumerable<WeatherForecast> Get()
     {
+        var cl = User;
         return Enumerable.Range(1, 5).Select(index => new WeatherForecast
             {
                 Date = DateTime.Now.AddDays(index),
