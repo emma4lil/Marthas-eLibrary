@@ -1,8 +1,8 @@
 # eLibrary
   * Clone repo
-  * Install Node v16.0.0
-  * run "npm install" to install packages
-  * run "npm run dev"
+  * Install Visual studio
+  * Install .Net 6
+  * Build
   * The api server currently points to https://fatman.azurewebsites.net
 
 # API
