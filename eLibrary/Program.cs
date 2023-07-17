@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using eLibrary.Application.Services;
+using eLibrary.Domain.Entities;
 using eLibrary.Infrastructure.Context;
 using eLibrary.Policy;
 using FirebaseAdmin;
@@ -24,6 +25,8 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         var configuration = builder.Configuration;
+
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
         builder.Services.AddDbContext<LibraryDbContext>(opt =>
         {
@@ -53,8 +56,11 @@ public class Program
                 );
             });
 
+        // Install custom services into DI
         builder.Services.AddSingleton<IAuthorizationHandler, HasScopeHandler>();
         builder.Services.AddScoped<IAuthenticationServices, AuthenticationServices>();
+        builder.Services.AddScoped<IReservationService, ReservationService>();
+        builder.Services.AddScoped<IBookService, BookService>();
 
 
         builder.Services.AddControllers();
@@ -94,6 +100,7 @@ public class Program
         ));
 
         var app = builder.Build();
+
 
         app.UseSwagger();
         app.UseSwaggerUI();

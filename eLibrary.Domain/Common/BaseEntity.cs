@@ -13,5 +13,7 @@ namespace eLibrary.Domain.Common
         [Required]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
+
+        public DateTime CreatedAt { get; set; }
     }
 }
